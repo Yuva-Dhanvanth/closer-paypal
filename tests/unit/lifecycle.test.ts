@@ -9,6 +9,7 @@ describe("Complete End-to-End Order & Refund Lifecycle", () => {
   let seller: any;
 
   beforeEach(async () => {
+    process.env.PAYPAL_MODE = "mock";
     seller = await seedDemoSeller();
   });
 

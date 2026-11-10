@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { getPayPalClient } from "../../lib/paypal";
 
+process.env.PAYPAL_MODE = "mock";
+
 describe("PayPal Client (Mock Mode)", () => {
   const client = getPayPalClient();
 
