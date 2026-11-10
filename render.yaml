@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: closer
+    runtime: node
+    plan: standard
+    buildCommand: npm ci && npx prisma generate && npx prisma db push && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.20.0
+      - key: APP_URL
+        sync: false
+      - key: PAYPAL_MODE
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_MODEL_AGENT
+        value: claude-sonnet-5-5
+      - key: LLM_MODEL_FAST
+        value: claude-haiku-5-5
+      - key: DATABASE_URL
+        sync: false
+      - key: DASHBOARD_PASSCODE
+        value: closer2026
+      - key: ADMIN_SECRET
+        sync: false

@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Seller {
+  id                  String         @id @default(cuid())
+  slug                String         @unique
+  name                String
+  tagline             String
+  tone                String
+  catalog             String
+  policies            String
+  demoClockOffsetDays Int            @default(0)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  conversations       Conversation[]
+  agentEvents         AgentEvent[]
+  orders              Order[]
+}
+
+model Conversation {
+  id            String       @id @default(cuid())
+  sellerId      String
+  customerName  String?
+  customerEmail String?
+  status        String       @default("active")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  seller        Seller       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  messages      Message[]
+  quotes        Quote[]
+  orders        Order[]
+  escalations   Escalation[]
+  agentEvents   AgentEvent[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Quote {
+  id              String       @id @default(cuid())
+  conversationId  String
+  sellerId        String
+  lines           String
+  subtotalCents   Int
+  discountPercent Int          @default(0)
+  discountCents   Int          @default(0)
+  rushFeeCents    Int          @default(0)
+  totalCents      Int
+  depositCents    Int
+  balanceCents    Int
+  dueDate         String
+  status          String       @default("draft")
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  orders          Order[]
+}
+
+model Order {
+  id             String       @id @default(cuid())
+  sellerId       String
+  conversationId String
+  quoteId        String
+  customerName   String
+  customerEmail  String
+  status         String       @default("deposit_pending")
+  dueDate        String
+  totalCents     Int
+  paidCents      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  seller         Seller       @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  quote          Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  payments       Payment[]
+  escalations    Escalation[]
+  agentEvents    AgentEvent[]
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  sellerId        String
+  orderId         String
+  type            String
+  amountCents     Int
+  status          String
+  attempt         Int       @default(1)
+  paypalOrderId   String?
+  paypalCaptureId String?
+  paypalRefundId  String?
+  raw             String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Escalation {
+  id             String       @id @default(cuid())
+  sellerId       String
+  conversationId String
+  orderId        String?
+  kind           String
+  summary        String
+  status         String       @default("open")
+  decidedAmount  Int?
+  resolvedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  order          Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+}
+
+model AgentEvent {
+  id             String        @id @default(cuid())
+  sellerId       String
+  conversationId String?
+  orderId        String?
+  type           String
+  summary        String
+  payload        String?
+  createdAt      DateTime      @default(now())
+
+  seller         Seller        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  order          Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+}
+
+model WebhookEvent {
+  id          String   @id
+  type        String
+  verified    Boolean  @default(true)
+  payload     String
+  processedAt DateTime @default(now())
+}
