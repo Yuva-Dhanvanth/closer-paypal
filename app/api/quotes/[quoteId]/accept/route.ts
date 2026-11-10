@@ -46,6 +46,7 @@ export async function POST(
           totalCents: quote.totalCents,
           paidCents: 0,
         },
+        include: { payments: true },
       });
 
       // Update conversation customer details

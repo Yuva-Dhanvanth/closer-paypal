@@ -102,7 +102,34 @@ function runMockAgentResponse(params: {
   messages: LLMMessage[];
   tools?: LLMToolDefinition[];
 }): LLMResponse {
-  const lastUserMsg = [...params.messages].reverse().find((m) => m.role === "user")?.content || "";
+  // If the previous message was a tool execution result, return synthesized answer with no more tool calls
+  const lastMsg = params.messages[params.messages.length - 1];
+  if (lastMsg && lastMsg.content.startsWith("Tool ")) {
+    if (lastMsg.content.includes("propose_cancellation")) {
+      return {
+        text: "I've processed your cancellation request against our store policy. Details and next steps are shown below.",
+        toolCalls: [],
+      };
+    }
+    if (lastMsg.content.includes("create_quote")) {
+      return {
+        text: "Here is your customized quote calculated according to our store policy:",
+        toolCalls: [],
+      };
+    }
+    if (lastMsg.content.includes("escalate_to_seller")) {
+      return {
+        text: "I have transferred your request directly to the bakery owner for review.",
+        toolCalls: [],
+      };
+    }
+    return {
+      text: "I have processed your request.",
+      toolCalls: [],
+    };
+  }
+
+  const lastUserMsg = [...params.messages].reverse().find((m) => m.role === "user" && !m.content.startsWith("Tool "))?.content || "";
   const lower = lastUserMsg.toLowerCase();
 
   // 1. Check for prompt injection attempts

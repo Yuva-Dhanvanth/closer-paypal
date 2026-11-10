@@ -1,9 +1,10 @@
 # Closer Project Progress
 
 ## Status Overview
-- Current Milestone: M3 (Dashboard, AG Grid, Webhooks & Escalations)
-- PAYPAL_MODE: mock (ready for sandbox toggle)
-- Test Coverage: 22/22 tests passing (Deterministic engine + PayPal client + Agent & Guardrails)
+- Current Milestone: M6 (Documentation, Hackathon Submission Draft & Video Guide)
+- PAYPAL_MODE: mock (sandbox-ready)
+- Test Coverage: 28/28 tests passing (Deterministic rules, PayPal client, Agent loop, Guardrail audit, Lifecycle, Security injection resistance, Webhook idempotency)
+- Next.js Production Build: PASSED (All 13 routes compiled & optimized)
 
 ## Milestone Tracking
 - [x] **M1: Core Engine, Database & PayPal Client**
@@ -23,7 +24,30 @@
   - [x] Deposit checkout flow (`/pay/[paymentId]`) with PayPal redirect
   - [x] Mock approval UI (`/mock-paypal/[orderId]`)
   - [x] Return handler with idempotent capture & chat confirmation
-- [ ] **M3: Seller Dashboard, Balance, Refunds & Escalations**
+- [x] **M3: Seller Dashboard, Balance, Refunds & Escalations**
+  - [x] Passcode-protected seller dashboard (`/dashboard/[slug]`)
+  - [x] AG Grid orders table with real-time status and row actions
+  - [x] Agent activity audit timeline with guardrail enforcement badges
+  - [x] Escalation queue with custom refund approval/denial
+  - [x] Fast-forward demo clock (+1 day, +5 days, reset)
+  - [x] Balance request and payment flow (`paid_in_full`)
+  - [x] Policy-based cancellation and PayPal refund flow
+  - [x] Verified webhook handler with idempotent processing
+  - [x] Demo reset endpoint (`/api/admin/reset-demo`)
+- [x] **M4: Sandbox Verification & Testing**
+  - [x] Prompt-injection security tests
+  - [x] Complete order, balance, and cancellation lifecycle test
+  - [x] Webhook signature & idempotency test
+  - [x] Production build passes cleanly (`npm run build`)
+  - [x] Health check endpoint (`/api/health`)
+- [x] **M5: P1 Features**
+  - [x] AI catalog onboarding (`/onboarding`)
+  - [x] Stage-based follow-up agent cron (`/api/cron/followups`)
+  - [x] Real-time metrics overview on dashboard
+- [ ] **M6: Hackathon Delivery**
+  - [ ] Devpost submission draft
+  - [ ] 2m30s demo video script & walkthrough guide
+  - [ ] Final documentation in `README.md`
   - [ ] Passcode-protected seller dashboard (`/dashboard/[slug]`)
   - [ ] AG Grid orders table with real-time status and row actions
   - [ ] Agent activity audit timeline with guardrail enforcement badges
