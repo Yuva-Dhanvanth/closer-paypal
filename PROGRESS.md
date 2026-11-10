@@ -1,9 +1,9 @@
 # Closer Project Progress
 
 ## Status Overview
-- Current Milestone: M2 (Agent, Chat Storefront, Checkout & Mock PayPal)
+- Current Milestone: M3 (Dashboard, AG Grid, Webhooks & Escalations)
 - PAYPAL_MODE: mock (ready for sandbox toggle)
-- Test Coverage: 20/20 unit tests passing (100% deterministic engine + PayPal client)
+- Test Coverage: 22/22 tests passing (Deterministic engine + PayPal client + Agent & Guardrails)
 
 ## Milestone Tracking
 - [x] **M1: Core Engine, Database & PayPal Client**
@@ -15,14 +15,14 @@
   - [x] Seed script (`prisma/seed.ts`) with Sugar & Spice Bakes
   - [x] PayPal smoke test script (`scripts/smoke-paypal.ts`)
   - [x] Render Blueprint (`render.yaml`) and `.env.example`
-- [ ] **M2: Conversational Agent & Customer Checkout Flow**
-  - [ ] Agent system prompt & tool definitions with Zod
-  - [ ] Agent run loop with audit logging of guardrails
-  - [ ] Customer chat UI (`/s/[slug]`) with quick prompts & structured cards
-  - [ ] Dynamic quote card with "Accept and pay deposit"
-  - [ ] Deposit checkout flow (`/pay/[paymentId]`) with PayPal redirect
-  - [ ] Mock approval UI (`/mock-paypal/[orderId]`)
-  - [ ] Return handler with idempotent capture & chat confirmation
+- [x] **M2: Conversational Agent & Customer Checkout Flow**
+  - [x] Agent system prompt & tool definitions with Zod
+  - [x] Agent run loop with audit logging of guardrails
+  - [x] Customer chat UI (`/s/[slug]`) with quick prompts & structured cards
+  - [x] Dynamic quote card with "Accept and pay deposit"
+  - [x] Deposit checkout flow (`/pay/[paymentId]`) with PayPal redirect
+  - [x] Mock approval UI (`/mock-paypal/[orderId]`)
+  - [x] Return handler with idempotent capture & chat confirmation
 - [ ] **M3: Seller Dashboard, Balance, Refunds & Escalations**
   - [ ] Passcode-protected seller dashboard (`/dashboard/[slug]`)
   - [ ] AG Grid orders table with real-time status and row actions
