@@ -72,7 +72,8 @@ describe("Security & Prompt-Injection Resistance", () => {
     for (const evt of events) {
       if (evt.payload) {
         expect(evt.payload).not.toContain("PAYPAL_CLIENT_SECRET");
-        expect(evt.payload).not.toContain("ANTHROPIC_API_KEY");
+        expect(evt.payload).not.toContain("GEMINI_API_KEY");
+        expect(evt.payload).not.toContain("GROQ_API_KEY");
         expect(evt.payload).not.toContain("ADMIN_SECRET");
       }
     }

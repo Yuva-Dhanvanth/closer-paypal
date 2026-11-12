@@ -133,9 +133,10 @@ PAYPAL_MODE=mock            # Set to 'sandbox' when testing with PayPal credenti
 PAYPAL_CLIENT_ID=
 PAYPAL_CLIENT_SECRET=
 PAYPAL_WEBHOOK_ID=
-ANTHROPIC_API_KEY=          # Optional: Mock agent activates if key is absent
-LLM_MODEL_AGENT=claude-sonnet-5-5
-LLM_MODEL_FAST=claude-haiku-5-5
+GEMINI_API_KEY=             # Optional free-tier key (Google AI Studio); offline intent engine activates if absent
+GROQ_API_KEY=               # Optional free-tier fallback key (Groq)
+LLM_MODEL_AGENT=gemini-2.5-flash
+LLM_MODEL_FAST=llama-3.3-70b-versatile
 DATABASE_URL="file:./dev.db"
 DASHBOARD_PASSCODE=closer2026
 ADMIN_SECRET=closer-admin-secret-2026
@@ -215,7 +216,7 @@ npm run build
 This repository includes a turnkey `render.yaml` Blueprint:
 1. Connect your GitHub repository to Render.
 2. Select **New Blueprint Instance** and choose `closer`.
-3. Provide your environment variables (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `ANTHROPIC_API_KEY`, `DATABASE_URL` from Neon, `APP_URL`, `ADMIN_SECRET`).
+3. Provide your environment variables (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, optional free-tier `GEMINI_API_KEY` or `GROQ_API_KEY`, `DATABASE_URL` from Neon, `APP_URL`, `ADMIN_SECRET`).
 4. Build command:
    ```bash
    npm ci --include=dev && node scripts/prepare-prisma.mjs && npx prisma generate && npx prisma db push && npm run db:seed && npm run build
@@ -226,7 +227,7 @@ This repository includes a turnkey `render.yaml` Blueprint:
 
 ## 🧩 Sponsor Integrations & Tech Stack
 - **PayPal Developer Platform (Sandbox)**: Orders v2 (`POST /v2/checkout/orders`), Captures (`POST /v2/checkout/orders/{id}/capture`), Refunds API (`POST /v2/payments/captures/{captureId}/refund`), and Signature-Verified Webhooks (`POST /v1/notifications/verify-webhook-signature`).
-- **AI / LLM**: Anthropic Claude SDK (`@anthropic-ai/sdk`) with structured tool calling (`create_quote`, `get_order_status`, `propose_cancellation`, `escalate_to_seller`) and automatic deterministic fallback when offline.
+- **AI / LLM**: Zero-dependency REST adapter supporting free-tier **Google Gemini (`gemini-2.5-flash`)** and **Groq (`llama-3.3-70b-versatile`)** with structured function calling (`create_quote`, `get_order_status`, `propose_cancellation`, `escalate_to_seller`), paired with an offline deterministic intent fallback.
 - **AG Grid (`ag-grid-react`)**: Interactive, filterable, paginated order management grid in the Seller Dashboard (`/dashboard/[slug]`).
 - **Render**: Infrastructure-as-code web service Blueprint (`render.yaml`) with Neon PostgreSQL support.
 

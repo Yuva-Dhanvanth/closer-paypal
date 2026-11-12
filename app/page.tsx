@@ -166,7 +166,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8 text-center text-xs text-slate-500">
-        Closer · Built for PayPal AI Hackathon 2026 · Powered by PayPal Orders v2, AG Grid, Render &amp; Anthropic Claude
+        Closer · Built for PayPal AI Hackathon 2026 · Powered by PayPal Orders v2, AG Grid, Render &amp; Gemini
       </footer>
     </div>
   );

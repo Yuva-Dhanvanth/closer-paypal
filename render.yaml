@@ -19,12 +19,14 @@ services:
         sync: false
       - key: PAYPAL_WEBHOOK_ID
         sync: false
-      - key: ANTHROPIC_API_KEY
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
         sync: false
       - key: LLM_MODEL_AGENT
-        value: claude-sonnet-5-5
+        value: gemini-2.5-flash
       - key: LLM_MODEL_FAST
-        value: claude-haiku-5-5
+        value: llama-3.3-70b-versatile
       - key: DATABASE_URL
         sync: false
       - key: DASHBOARD_PASSCODE

@@ -35,7 +35,7 @@ export const EscalateToSellerInputSchema = z.object({
 
 export const GetOrderStatusInputSchema = z.object({});
 
-// Anthropic JSON Tool Definitions
+// LLM Function Tool Definitions
 export const AGENT_TOOLS: LLMToolDefinition[] = [
   {
     name: "create_quote",

@@ -19,7 +19,6 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.33.1",
     "@prisma/client": "^5.22.0",
     "ag-grid-community": "^32.3.3",
     "ag-grid-react": "^32.3.3",

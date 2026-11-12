@@ -1,5 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-
 export interface LLMMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -26,6 +24,188 @@ export interface LLMResponse {
   toolCalls: LLMToolCall[];
 }
 
+function normalizeTurns(messages: LLMMessage[]): Array<{ role: "user" | "assistant"; content: string }> {
+  const rawFiltered = messages.filter(
+    (m) => (m.role === "user" || m.role === "assistant") && m.content.trim() !== ""
+  );
+
+  const normalized: Array<{ role: "user" | "assistant"; content: string }> = [];
+  for (const m of rawFiltered) {
+    const role = m.role as "user" | "assistant";
+    if (normalized.length === 0 && role === "assistant") {
+      // Skip leading welcome assistant message
+      continue;
+    }
+    const prev = normalized[normalized.length - 1];
+    if (prev && prev.role === role) {
+      prev.content = `${prev.content}\n\n${m.content}`;
+    } else {
+      normalized.push({ role, content: m.content });
+    }
+  }
+  return normalized;
+}
+
+async function callGeminiAPI(
+  apiKey: string,
+  params: {
+    systemPrompt: string;
+    messages: LLMMessage[];
+    tools?: LLMToolDefinition[];
+    model?: string;
+    temperature?: number;
+  }
+): Promise<LLMResponse> {
+  const turns = normalizeTurns(params.messages);
+  if (turns.length === 0) {
+    return runDeterministicAgentResponse(params);
+  }
+
+  const contents = turns.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+
+  const functionDeclarations = (params.tools || []).map((t) => {
+    const hasProps = t.input_schema.properties && Object.keys(t.input_schema.properties).length > 0;
+    return {
+      name: t.name,
+      description: t.description,
+      ...(hasProps ? { parameters: t.input_schema } : {}),
+    };
+  });
+
+  const requestedModel = params.model || process.env.LLM_MODEL_AGENT || "gemini-2.5-flash";
+  const candidateModels = Array.from(new Set([requestedModel, "gemini-2.5-flash", "gemini-2.0-flash"]));
+
+  let lastError: Error | null = null;
+  for (const model of candidateModels) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: params.systemPrompt }] },
+          contents,
+          ...(functionDeclarations.length > 0 ? { tools: [{ functionDeclarations }] } : {}),
+          generationConfig: {
+            temperature: params.temperature ?? 0.2,
+            maxOutputTokens: 1024,
+          },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errText = await res.text();
+      lastError = new Error(`Gemini API (${model}) returned ${res.status}: ${errText}`);
+      if (res.status === 404) continue;
+      throw lastError;
+    }
+
+    const data = await res.json();
+    const parts: any[] = data?.candidates?.[0]?.content?.parts || [];
+    let textContent = "";
+    const toolCalls: LLMToolCall[] = [];
+
+    parts.forEach((part, idx) => {
+      if (typeof part.text === "string") {
+        textContent += part.text;
+      } else if (part.functionCall?.name) {
+        toolCalls.push({
+          id: `call_${Date.now()}_${idx}`,
+          name: part.functionCall.name,
+          input: (part.functionCall.args || {}) as Record<string, any>,
+        });
+      }
+    });
+
+    return {
+      text: textContent.trim(),
+      toolCalls,
+    };
+  }
+
+  throw lastError || new Error("No valid Gemini model responded");
+}
+
+async function callGroqAPI(
+  apiKey: string,
+  params: {
+    systemPrompt: string;
+    messages: LLMMessage[];
+    tools?: LLMToolDefinition[];
+    model?: string;
+    temperature?: number;
+  }
+): Promise<LLMResponse> {
+  const turns = normalizeTurns(params.messages);
+  if (turns.length === 0) {
+    return runDeterministicAgentResponse(params);
+  }
+
+  const requestedModel = params.model || process.env.LLM_MODEL_FAST || "llama-3.3-70b-versatile";
+  const tools = (params.tools || []).map((t) => ({
+    type: "function" as const,
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: t.input_schema,
+    },
+  }));
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: requestedModel,
+      temperature: params.temperature ?? 0.2,
+      max_tokens: 1024,
+      messages: [
+        { role: "system", content: params.systemPrompt },
+        ...turns.map((m) => ({ role: m.role, content: m.content })),
+      ],
+      ...(tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Groq API returned ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json();
+  const message = data?.choices?.[0]?.message;
+  const toolCalls: LLMToolCall[] = [];
+
+  if (Array.isArray(message?.tool_calls)) {
+    for (const tc of message.tool_calls) {
+      if (tc?.function?.name) {
+        let parsedArgs: Record<string, any> = {};
+        try {
+          parsedArgs = tc.function.arguments ? JSON.parse(tc.function.arguments) : {};
+        } catch {
+          parsedArgs = {};
+        }
+        toolCalls.push({
+          id: tc.id || `call_${Date.now()}`,
+          name: tc.function.name,
+          input: parsedArgs,
+        });
+      }
+    }
+  }
+
+  return {
+    text: (message?.content || "").trim(),
+    toolCalls,
+  };
+}
+
 export async function callLLM(params: {
   systemPrompt: string;
   messages: LLMMessage[];
@@ -33,110 +213,33 @@ export async function callLLM(params: {
   model?: string;
   temperature?: number;
 }): Promise<LLMResponse> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-
-  // If no Anthropic API key is provided, use intelligent deterministic mock generator
-  if (!apiKey || apiKey.trim() === "" || apiKey.startsWith("mock-")) {
-    return runMockAgentResponse(params);
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (geminiKey && !geminiKey.startsWith("mock-")) {
+    try {
+      return await callGeminiAPI(geminiKey, params);
+    } catch (error: any) {
+      console.warn("Gemini API call failed, checking fallbacks:", error.message);
+    }
   }
 
-  try {
-    const anthropic = new Anthropic({ apiKey });
-    const requestedModel = params.model || process.env.LLM_MODEL_AGENT || "claude-sonnet-4-5";
-
-    // Anthropic requires messages to start with 'user' and strictly alternate roles
-    const rawFiltered = params.messages.filter(
-      (m) => (m.role === "user" || m.role === "assistant") && m.content.trim() !== ""
-    );
-
-    const formattedMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
-    for (const m of rawFiltered) {
-      const role = m.role as "user" | "assistant";
-      if (formattedMessages.length === 0 && role === "assistant") {
-        // Skip leading welcome assistant message
-        continue;
-      }
-      const prev = formattedMessages[formattedMessages.length - 1];
-      if (prev && prev.role === role) {
-        prev.content = `${prev.content}\n\n${m.content}`;
-      } else {
-        formattedMessages.push({ role, content: m.content });
-      }
+  const groqKey = process.env.GROQ_API_KEY?.trim();
+  if (groqKey && !groqKey.startsWith("mock-")) {
+    try {
+      return await callGroqAPI(groqKey, params);
+    } catch (error: any) {
+      console.warn("Groq API call failed, falling back to deterministic agent:", error.message);
     }
-
-    if (formattedMessages.length === 0) {
-      return runMockAgentResponse(params);
-    }
-
-    const formattedTools = (params.tools || []).map((t) => ({
-      name: t.name,
-      description: t.description,
-      input_schema: t.input_schema as Anthropic.Tool.InputSchema,
-    }));
-
-    const candidateModels = Array.from(
-      new Set([requestedModel, "claude-sonnet-4-5", "claude-3-5-sonnet-latest", "claude-3-5-sonnet-20241022"])
-    );
-
-    let response: Anthropic.Message | null = null;
-    let lastError: any = null;
-
-    for (const model of candidateModels) {
-      try {
-        response = await anthropic.messages.create({
-          model,
-          max_tokens: 1024,
-          temperature: params.temperature ?? 0.2,
-          system: params.systemPrompt,
-          messages: formattedMessages,
-          tools: formattedTools.length > 0 ? formattedTools : undefined,
-        });
-        break;
-      } catch (err: any) {
-        lastError = err;
-        // Retry with fallback model ID only if model name wasn't found (404)
-        if (err?.status === 404 || String(err?.message).includes("not_found")) {
-          continue;
-        }
-        throw err;
-      }
-    }
-
-    if (!response) {
-      throw lastError || new Error("No valid Anthropic model responded");
-    }
-
-    let textContent = "";
-    const toolCalls: LLMToolCall[] = [];
-
-    for (const block of response.content) {
-      if (block.type === "text") {
-        textContent += block.text;
-      } else if (block.type === "tool_use") {
-        toolCalls.push({
-          id: block.id,
-          name: block.name,
-          input: block.input as Record<string, any>,
-        });
-      }
-    }
-
-    return {
-      text: textContent.trim(),
-      toolCalls,
-    };
-  } catch (error: any) {
-    console.warn("⚠️ Anthropic API call failed or key invalid, falling back to mock agent:", error.message);
-    return runMockAgentResponse(params);
   }
+
+  return runDeterministicAgentResponse(params);
 }
 
 /**
- * Intelligent Mock Agent for offline development, CI/CD, and evaluation.
+ * Deterministic Intent & Tool-Routing Agent for offline development, CI/CD, and zero-key evaluation.
  * Detects intent (quoting, discount negotiation, allergies/escalation, cancellation, order status)
- * and issues proper tool calls.
+ * and issues structured tool calls.
  */
-function runMockAgentResponse(params: {
+function runDeterministicAgentResponse(params: {
   systemPrompt: string;
   messages: LLMMessage[];
   tools?: LLMToolDefinition[];
