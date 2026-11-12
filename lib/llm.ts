@@ -42,15 +42,31 @@ export async function callLLM(params: {
 
   try {
     const anthropic = new Anthropic({ apiKey });
-    const model = params.model || process.env.LLM_MODEL_AGENT || "claude-3-5-sonnet-20241022";
+    const requestedModel = params.model || process.env.LLM_MODEL_AGENT || "claude-sonnet-4-5";
 
-    // Format messages for Anthropic API
-    const formattedMessages = params.messages
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      }));
+    // Anthropic requires messages to start with 'user' and strictly alternate roles
+    const rawFiltered = params.messages.filter(
+      (m) => (m.role === "user" || m.role === "assistant") && m.content.trim() !== ""
+    );
+
+    const formattedMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
+    for (const m of rawFiltered) {
+      const role = m.role as "user" | "assistant";
+      if (formattedMessages.length === 0 && role === "assistant") {
+        // Skip leading welcome assistant message
+        continue;
+      }
+      const prev = formattedMessages[formattedMessages.length - 1];
+      if (prev && prev.role === role) {
+        prev.content = `${prev.content}\n\n${m.content}`;
+      } else {
+        formattedMessages.push({ role, content: m.content });
+      }
+    }
+
+    if (formattedMessages.length === 0) {
+      return runMockAgentResponse(params);
+    }
 
     const formattedTools = (params.tools || []).map((t) => ({
       name: t.name,
@@ -58,14 +74,37 @@ export async function callLLM(params: {
       input_schema: t.input_schema as Anthropic.Tool.InputSchema,
     }));
 
-    const response = await anthropic.messages.create({
-      model,
-      max_tokens: 1024,
-      temperature: params.temperature ?? 0.2,
-      system: params.systemPrompt,
-      messages: formattedMessages,
-      tools: formattedTools.length > 0 ? formattedTools : undefined,
-    });
+    const candidateModels = Array.from(
+      new Set([requestedModel, "claude-sonnet-4-5", "claude-3-5-sonnet-latest", "claude-3-5-sonnet-20241022"])
+    );
+
+    let response: Anthropic.Message | null = null;
+    let lastError: any = null;
+
+    for (const model of candidateModels) {
+      try {
+        response = await anthropic.messages.create({
+          model,
+          max_tokens: 1024,
+          temperature: params.temperature ?? 0.2,
+          system: params.systemPrompt,
+          messages: formattedMessages,
+          tools: formattedTools.length > 0 ? formattedTools : undefined,
+        });
+        break;
+      } catch (err: any) {
+        lastError = err;
+        // Retry with fallback model ID only if model name wasn't found (404)
+        if (err?.status === 404 || String(err?.message).includes("not_found")) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error("No valid Anthropic model responded");
+    }
 
     let textContent = "";
     const toolCalls: LLMToolCall[] = [];

@@ -215,14 +215,23 @@ npm run build
 This repository includes a turnkey `render.yaml` Blueprint:
 1. Connect your GitHub repository to Render.
 2. Select **New Blueprint Instance** and choose `closer`.
-3. Provide your environment variables (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `ANTHROPIC_API_KEY`, `DATABASE_URL` from Neon).
+3. Provide your environment variables (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `ANTHROPIC_API_KEY`, `DATABASE_URL` from Neon, `APP_URL`, `ADMIN_SECRET`).
 4. Build command:
    ```bash
-   npm ci && npx prisma generate && npx prisma db push && npm run build
+   npm ci --include=dev && node scripts/prepare-prisma.mjs && npx prisma generate && npx prisma db push && npm run db:seed && npm run build
    ```
 5. Health check endpoint: `/api/health`.
 
 ---
 
-## ⚖️ Tax Disclosure
-*Note: Sales tax and value-added taxes are intentionally excluded from this prototype scope.*
+## 🧩 Sponsor Integrations & Tech Stack
+- **PayPal Developer Platform (Sandbox)**: Orders v2 (`POST /v2/checkout/orders`), Captures (`POST /v2/checkout/orders/{id}/capture`), Refunds API (`POST /v2/payments/captures/{captureId}/refund`), and Signature-Verified Webhooks (`POST /v1/notifications/verify-webhook-signature`).
+- **AI / LLM**: Anthropic Claude SDK (`@anthropic-ai/sdk`) with structured tool calling (`create_quote`, `get_order_status`, `propose_cancellation`, `escalate_to_seller`) and automatic deterministic fallback when offline.
+- **AG Grid (`ag-grid-react`)**: Interactive, filterable, paginated order management grid in the Seller Dashboard (`/dashboard/[slug]`).
+- **Render**: Infrastructure-as-code web service Blueprint (`render.yaml`) with Neon PostgreSQL support.
+
+---
+
+## 📄 License & Tax Disclosure
+- **License**: Released under the [MIT License](LICENSE) (OSI-approved).
+- **Tax Disclosure**: *Sales tax and value-added taxes are intentionally excluded from this prototype scope.*
