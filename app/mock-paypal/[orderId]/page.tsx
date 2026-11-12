@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 interface MockPayPalPageProps {
   params: Promise<{ orderId: string }>;
   searchParams: Promise<{ [key: string]: string | undefined }>;
@@ -71,21 +69,21 @@ export default async function MockPayPalPage({
           <p className="text-blue-700 font-mono mt-0.5">buyer-sandbox@closer.dev (Personal)</p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons (plain anchors avoid Next.js Link prefetch triggering GET handlers) */}
         <div className="space-y-3">
-          <Link
+          <a
             href={returnUrl}
             className="w-full flex items-center justify-center py-3.5 px-4 rounded-full font-bold text-sm text-black bg-[#FFC439] hover:bg-[#F2BA36] shadow transition duration-150 active:scale-[0.98]"
           >
             <span>Complete Purchase & Approve</span>
-          </Link>
+          </a>
 
-          <Link
+          <a
             href={cancelUrl}
             className="w-full flex items-center justify-center py-2.5 px-4 rounded-full font-medium text-xs text-gray-600 hover:text-gray-900 transition"
           >
             Cancel and return to store
-          </Link>
+          </a>
         </div>
       </main>
 
