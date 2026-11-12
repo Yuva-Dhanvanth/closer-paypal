@@ -26,11 +26,21 @@ export async function GET(req: NextRequest) {
 
     if (!payment) {
       console.error(`No payment record found for PayPal order ID ${token}`);
-      return NextResponse.redirect(new URL("/?error=payment_not_found", req.url));
+      return NextResponse.redirect(new URL("/?error=payment_not_found", process.env.APP_URL || req.url));
     }
 
     const { order } = payment;
     const { seller } = order;
+    const baseUrl = process.env.APP_URL || req.url;
+
+    // Idempotent guard: if payment was already captured/completed, redirect cleanly without double-counting
+    if (payment.status === "completed") {
+      const redirectUrl = new URL(
+        `/s/${seller.slug}?conversationId=${order.conversationId}&paymentSuccess=true&captureId=${payment.paypalCaptureId || ""}`,
+        baseUrl
+      );
+      return NextResponse.redirect(redirectUrl);
+    }
 
     // Execute capture via PayPal client
     const client = getPayPalClient();
@@ -110,11 +120,11 @@ export async function GET(req: NextRequest) {
     // Redirect user back to store chat
     const redirectUrl = new URL(
       `/s/${seller.slug}?conversationId=${order.conversationId}&paymentSuccess=true&captureId=${captureResult.captureId}`,
-      req.url
+      baseUrl
     );
     return NextResponse.redirect(redirectUrl);
   } catch (error: any) {
     console.error("Error in /api/paypal/return:", error);
-    return NextResponse.redirect(new URL("/?error=capture_failed", req.url));
+    return NextResponse.redirect(new URL("/?error=capture_failed", process.env.APP_URL || req.url));
   }
 }

@@ -2,8 +2,8 @@ services:
   - type: web
     name: closer
     runtime: node
-    plan: standard
-    buildCommand: npm ci && npx prisma generate && npx prisma db push && npm run build
+    plan: free
+    buildCommand: npm ci --include=dev && node scripts/prepare-prisma.mjs && npx prisma generate && npx prisma db push && npm run db:seed && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:

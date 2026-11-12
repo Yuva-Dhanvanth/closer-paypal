@@ -42,17 +42,21 @@ export default async function PayRedirectPage({
   const client = getPayPalClient();
   const appUrl = process.env.APP_URL || "http://localhost:3000";
 
-  // Fresh order per click to prevent expired approvals
-  const currentAttempt = payment.attempt || 1;
+  // Fresh order per click to prevent expired approvals and DUPLICATE_INVOICE_ID
+  const nextAttempt = payment.paypalOrderId
+    ? (payment.attempt || 1) + 1
+    : payment.attempt || 1;
   const isDeposit = payment.type === "deposit";
   const desc = isDeposit
     ? `${payment.order.seller.name}: Deposit for Order #${payment.orderId.substring(0, 8)}`
     : `${payment.order.seller.name}: Balance for Order #${payment.orderId.substring(0, 8)}`;
 
+  let approvalUrl: string;
+
   try {
     const paypalOrder = await client.createOrder({
       paymentId: payment.id,
-      attempt: currentAttempt,
+      attempt: nextAttempt,
       amountCents: payment.amountCents,
       description: desc,
       brandName: payment.order.seller.name,
@@ -60,16 +64,16 @@ export default async function PayRedirectPage({
       cancelUrl: `${appUrl}/api/paypal/cancel`,
     });
 
-    // Update payment record with PayPal Order ID
+    // Update payment record with PayPal Order ID and attempt count
     await prisma.payment.update({
       where: { id: payment.id },
       data: {
         paypalOrderId: paypalOrder.orderId,
+        attempt: nextAttempt,
       },
     });
 
-    // Redirect directly to PayPal or Mock PayPal page
-    redirect(paypalOrder.approvalUrl);
+    approvalUrl = paypalOrder.approvalUrl;
   } catch (error: any) {
     console.error("Error creating PayPal order:", error);
     return (
@@ -89,4 +93,7 @@ export default async function PayRedirectPage({
       </div>
     );
   }
+
+  // Redirect outside try/catch so Next.js NEXT_REDIRECT isn't caught as an error
+  redirect(approvalUrl);
 }

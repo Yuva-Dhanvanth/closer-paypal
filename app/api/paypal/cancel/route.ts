@@ -37,13 +37,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const baseUrl = process.env.APP_URL || req.url;
     const redirectUrl = new URL(
       `/s/${sellerSlug}${conversationId ? `?conversationId=${conversationId}&paymentCancelled=true` : ""}`,
-      req.url
+      baseUrl
     );
     return NextResponse.redirect(redirectUrl);
   } catch (error) {
     console.error("Error in /api/paypal/cancel:", error);
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL("/", process.env.APP_URL || req.url));
   }
 }
